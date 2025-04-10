@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Horse Rig</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: Arial, sans-serif;
+        }
+        canvas { 
+            display: block; 
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 8px;
+            color: white;
+        }
+        button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #3e8e41;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.151.3/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="loading" class="loading">Loading horse model...</div>
+    <div id="controls">
+        <button id="walkBtn">Walk</button>
+        <button id="trotBtn">Trot</button>
+        <button id="gallopBtn">Gallop</button>
+        <button id="idleBtn">Idle</button>
+    </div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 3, 5);
+        
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(directionalLight);
+        
+        // Ground plane
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x556B2F,
+            roughness: 1,
+            metalness: 0
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // Load horse model
+        let mixer;
+        let horse;
+        let animations = {};
+        const loader = new GLTFLoader();
+        
+        loader.load('/horse_rig.glb', (gltf) => {
+            horse = gltf.scene;
+            
+            // Setup shadows
+            horse.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            
+            // Scale and position the horse
+            horse.scale.set(1, 1, 1);
+            horse.position.y = 0;
+            scene.add(horse);
+            
+            // Animation setup
+            mixer = new THREE.AnimationMixer(horse);
+            
+            // Extract animations
+            gltf.animations.forEach((clip) => {
+                // Use the animation name or index if no name
+                const name = clip.name || `animation_${gltf.animations.indexOf(clip)}`;
+                animations[name] = mixer.clipAction(clip);
+            });
+            
+            // If no named animations, create fallback
+            if (Object.keys(animations).length === 0 && gltf.animations.length > 0) {
+                animations['walk'] = mixer.clipAction(gltf.animations[0]);
+                if (gltf.animations.length > 1) animations['trot'] = mixer.clipAction(gltf.animations[1]);
+                if (gltf.animations.length > 2) animations['gallop'] = mixer.clipAction(gltf.animations[2]);
+                if (gltf.animations.length > 3) animations['idle'] = mixer.clipAction(gltf.animations[3]);
+            }
+            
+            // Play idle animation by default if available
+            if (animations['idle']) {
+                animations['idle'].play();
+            } else if (Object.values(animations).length > 0) {
+                Object.values(animations)[0].play();
+            }
+            
+            // Hide loading message
+            document.getElementById('loading').style.display = 'none';
+            
+            // Setup animation buttons
+            setupAnimationButtons();
+        }, 
+        // Progress callback
+        (xhr) => {
+            const percent = (xhr.loaded / xhr.total) * 100;
+            document.getElementById('loading').textContent = `Loading horse model: ${Math.round(percent)}%`;
+        },
+        // Error callback
+        (error) => {
+            console.error('Error loading model:', error);
+            document.getElementById('loading').textContent = 'Error loading model!';
+        });
+        
+        // Function to play animation
+        function playAnimation(name) {
+            // If the animation doesn't exist, return
+            if (!animations[name]) {
+                console.warn(`Animation "${name}" not found!`);
+                return;
+            }
+            
+            // Stop all current animations
+            for (const anim of Object.values(animations)) {
+                anim.stop();
+            }
+            
+            // Play the requested animation
+            animations[name].reset();
+            animations[name].play();
+        }
+        
+        // Setup animation buttons
+        function setupAnimationButtons() {
+            document.getElementById('walkBtn').addEventListener('click', () => playAnimation('walk'));
+            document.getElementById('trotBtn').addEventListener('click', () => playAnimation('trot'));
+            document.getElementById('gallopBtn').addEventListener('click', () => playAnimation('gallop'));
+            document.getElementById('idleBtn').addEventListener('click', () => playAnimation('idle'));
+        }
+        
+        // Animation loop
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update controls
+            controls.update();
+            
+            // Update animation mixer
+            if (mixer) {
+                mixer.update(clock.getDelta());
+            }
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Start animation loop
+        animate();
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
