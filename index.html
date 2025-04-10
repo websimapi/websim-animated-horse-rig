@@ -160,6 +160,75 @@
         .toggle-editor button {
             background: #333;
         }
+        /* New styles for bone categorization */
+        #bone-category-selector {
+            margin-bottom: 10px;
+            background: #444;
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            width: 100%;
+        }
+        .bone-group {
+            font-weight: bold;
+            background-color: #2a2a2a;
+        }
+        .position-control {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .position-control label {
+            width: 20px;
+            text-align: right;
+            margin-right: 10px;
+        }
+        .position-control input {
+            flex: 1;
+        }
+        .position-control span {
+            width: 40px;
+            text-align: right;
+        }
+        .controls-tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .controls-tab {
+            padding: 5px 10px;
+            background: #444;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            margin-right: 2px;
+        }
+        .controls-tab.active {
+            background: #555;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #help-panel {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            background: rgba(30,30,30,0.85);
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 300px;
+            display: none;
+            z-index: 100;
+        }
+        #help-btn {
+            position: absolute;
+            top: 10px;
+            right: 140px;
+            z-index: 100;
+            background: #333;
+        }
     </style>
     <script type="importmap">
         {
@@ -174,6 +243,21 @@
     <div id="loading" class="loading">Loading horse model...</div>
     <div class="toggle-editor">
         <button id="toggleEditor">Toggle Editor</button>
+    </div>
+    <button id="help-btn">Help</button>
+    <div id="help-panel">
+        <h3>Horse Animation Editor</h3>
+        <p>This editor allows you to create animations for the rigged horse model.</p>
+        <p><strong>How to use:</strong></p>
+        <ul>
+            <li>Select a bone from the dropdown menu</li>
+            <li>Adjust rotation values using the sliders</li>
+            <li>Add keyframes at different points in the timeline</li>
+            <li>Scrub through the timeline to preview your animation</li>
+            <li>Use Play/Pause to see your animation in motion</li>
+            <li>Save your animation to reuse later</li>
+        </ul>
+        <p><strong>Tips:</strong> For natural movement, start with the main body parts (spine, neck) before animating legs and tail.</p>
     </div>
     <div id="editor-container">
         <div id="timeline">
@@ -195,32 +279,75 @@
                 </div>
             </div>
             <div class="panel bone-panel">
+                <select id="bone-category-selector">
+                    <option value="all">All Bones</option>
+                    <option value="spine">Spine</option>
+                    <option value="head">Head</option>
+                    <option value="frontLegs">Front Legs</option>
+                    <option value="hindLegs">Hind Legs</option>
+                    <option value="tail">Tail</option>
+                    <option value="other">Other</option>
+                </select>
                 <select id="bone-selector">
                     <option value="">Select a bone...</option>
                 </select>
-                <div class="rotation-control">
-                    <label>X:</label>
-                    <input type="range" id="rotationX" min="-180" max="180" value="0">
-                    <span id="rotationXValue">0°</span>
+                <div class="controls-tabs">
+                    <div class="controls-tab active" data-tab="rotation">Rotation</div>
+                    <div class="controls-tab" data-tab="position">Position</div>
                 </div>
-                <div class="rotation-control">
-                    <label>Y:</label>
-                    <input type="range" id="rotationY" min="-180" max="180" value="0">
-                    <span id="rotationYValue">0°</span>
+                <div class="tab-content active" id="rotation-tab">
+                    <div class="rotation-control">
+                        <label>X:</label>
+                        <input type="range" id="rotationX" min="-180" max="180" value="0">
+                        <span id="rotationXValue">0°</span>
+                    </div>
+                    <div class="rotation-control">
+                        <label>Y:</label>
+                        <input type="range" id="rotationY" min="-180" max="180" value="0">
+                        <span id="rotationYValue">0°</span>
+                    </div>
+                    <div class="rotation-control">
+                        <label>Z:</label>
+                        <input type="range" id="rotationZ" min="-180" max="180" value="0">
+                        <span id="rotationZValue">0°</span>
+                    </div>
                 </div>
-                <div class="rotation-control">
-                    <label>Z:</label>
-                    <input type="range" id="rotationZ" min="-180" max="180" value="0">
-                    <span id="rotationZValue">0°</span>
+                <div class="tab-content" id="position-tab">
+                    <div class="position-control">
+                        <label>X:</label>
+                        <input type="range" id="positionX" min="-2" max="2" step="0.01" value="0">
+                        <span id="positionXValue">0</span>
+                    </div>
+                    <div class="position-control">
+                        <label>Y:</label>
+                        <input type="range" id="positionY" min="-2" max="2" step="0.01" value="0">
+                        <span id="positionYValue">0</span>
+                    </div>
+                    <div class="position-control">
+                        <label>Z:</label>
+                        <input type="range" id="positionZ" min="-2" max="2" step="0.01" value="0">
+                        <span id="positionZValue">0</span>
+                    </div>
                 </div>
             </div>
             <div class="panel animation-panel">
-                <h4>Preset Animations</h4>
-                <button id="walkBtn">Walk</button>
-                <button id="trotBtn">Trot</button>
-                <button id="gallopBtn">Gallop</button>
-                <button id="idleBtn">Idle</button>
+                <h4>Animation Controls</h4>
+                <div id="preset-animations" style="display: none;">
+                    <h5>Preset Animations</h5>
+                    <button id="walkBtn">Walk</button>
+                    <button id="trotBtn">Trot</button>
+                    <button id="gallopBtn">Gallop</button>
+                    <button id="idleBtn">Idle</button>
+                </div>
                 <button id="newAnimBtn">New Animation</button>
+                <div>
+                    <label for="anim-duration">Duration (seconds):</label>
+                    <input type="number" id="anim-duration" min="1" max="20" value="5" style="width: 50px; background: #444; color: white; border: 1px solid #555; border-radius: 4px; padding: 3px;">
+                    <button id="updateDurationBtn">Update</button>
+                </div>
+                <div id="animation-tips">
+                    <p style="font-size: 12px; margin-top: 10px;">Selected bone: <span id="current-bone-name">None</span></p>
+                </div>
             </div>
         </div>
     </div>
@@ -285,6 +412,15 @@
         let customAnimationClip = null;
         let customAction = null;
         let editorVisible = true;
+        let hasPresetAnimations = false;
+        let boneCategories = {
+            spine: [],
+            head: [],
+            frontLegs: [],
+            hindLegs: [],
+            tail: [],
+            other: []
+        };
         
         // Create an empty THREE.AnimationClip
         function createEmptyClip(name, duration) {
@@ -338,11 +474,21 @@
                         
                         // Apply the rotation from the keyframe
                         if (keyframes[boneName] && keyframes[boneName][time]) {
-                            const rotation = keyframes[boneName][time];
-                            document.getElementById('rotationX').value = THREE.MathUtils.radToDeg(rotation.x);
-                            document.getElementById('rotationY').value = THREE.MathUtils.radToDeg(rotation.y);
-                            document.getElementById('rotationZ').value = THREE.MathUtils.radToDeg(rotation.z);
+                            const data = keyframes[boneName][time];
+                            
+                            // Apply rotation
+                            document.getElementById('rotationX').value = THREE.MathUtils.radToDeg(data.rotation.x);
+                            document.getElementById('rotationY').value = THREE.MathUtils.radToDeg(data.rotation.y);
+                            document.getElementById('rotationZ').value = THREE.MathUtils.radToDeg(data.rotation.z);
                             updateRotationLabels();
+                            
+                            // Apply position if it exists
+                            if (data.position) {
+                                document.getElementById('positionX').value = data.position.x;
+                                document.getElementById('positionY').value = data.position.y;
+                                document.getElementById('positionZ').value = data.position.z;
+                                updatePositionLabels();
+                            }
                         }
                     });
                     
@@ -397,6 +543,28 @@
             document.getElementById('timeDisplay').textContent = `${currentTime.toFixed(2)}s`;
         }
         
+        // Categorize bones by name patterns
+        function categorizeBone(boneName) {
+            const lowerName = boneName.toLowerCase();
+            
+            if (lowerName.includes('spine') || lowerName.includes('back') || lowerName.includes('neck')) {
+                return 'spine';
+            } else if (lowerName.includes('head') || lowerName.includes('jaw') || lowerName.includes('ear') || 
+                       lowerName.includes('mouth') || lowerName.includes('nose')) {
+                return 'head';
+            } else if ((lowerName.includes('leg') || lowerName.includes('hoof') || lowerName.includes('foot')) && 
+                       (lowerName.includes('front') || lowerName.includes('fore'))) {
+                return 'frontLegs';
+            } else if ((lowerName.includes('leg') || lowerName.includes('hoof') || lowerName.includes('foot')) && 
+                       (lowerName.includes('hind') || lowerName.includes('back'))) {
+                return 'hindLegs';
+            } else if (lowerName.includes('tail')) {
+                return 'tail';
+            } else {
+                return 'other';
+            }
+        }
+        
         // Load horse model
         const loader = new GLTFLoader();
         
@@ -414,8 +582,16 @@
                 }
             });
             
-            // Find and store all bones
-            populateBoneSelector();
+            // Find and categorize all bones
+            if (skeleton) {
+                skeleton.bones.forEach(bone => {
+                    const category = categorizeBone(bone.name);
+                    boneCategories[category].push(bone);
+                });
+            }
+            
+            // Populate bone selector with categorized bones
+            updateBoneSelectorByCategory('all');
             
             // Scale and position the horse
             horse.scale.set(1, 1, 1);
@@ -425,25 +601,22 @@
             // Animation setup
             mixer = new THREE.AnimationMixer(horse);
             
-            // Extract animations
-            gltf.animations.forEach((clip) => {
-                const name = clip.name || `animation_${gltf.animations.indexOf(clip)}`;
-                animations[name] = mixer.clipAction(clip);
-            });
+            // Check if the model has animations
+            hasPresetAnimations = gltf.animations && gltf.animations.length > 0;
+            
+            // Extract animations if they exist
+            if (hasPresetAnimations) {
+                gltf.animations.forEach((clip) => {
+                    const name = clip.name || `animation_${gltf.animations.indexOf(clip)}`;
+                    animations[name] = mixer.clipAction(clip);
+                });
+                
+                // Show preset animations panel
+                document.getElementById('preset-animations').style.display = 'block';
+            }
             
             // Create a new empty animation
             createNewAnimation();
-            
-            // If no named animations, create fallbacks
-            if (Object.keys(animations).length === 0 && gltf.animations.length > 0) {
-                animations['walk'] = mixer.clipAction(gltf.animations[0]);
-                if (gltf.animations.length > 1) animations['trot'] = mixer.clipAction(gltf.animations[1]);
-                if (gltf.animations.length > 2) animations['gallop'] = mixer.clipAction(gltf.animations[2]);
-                if (gltf.animations.length > 3) animations['idle'] = mixer.clipAction(gltf.animations[3]);
-            }
-            
-            // Setup timeline
-            setupTimeline();
             
             // Hide loading message
             document.getElementById('loading').style.display = 'none';
@@ -462,18 +635,39 @@
             document.getElementById('loading').textContent = 'Error loading model!';
         });
         
-        function populateBoneSelector() {
+        function updateBoneSelectorByCategory(category) {
             const selector = document.getElementById('bone-selector');
             selector.innerHTML = '<option value="">Select a bone...</option>';
             
             if (!skeleton) return;
             
-            skeleton.bones.forEach((bone, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = bone.name;
-                selector.appendChild(option);
-            });
+            if (category === 'all') {
+                // Add all bones in categorized groups
+                for (const catName in boneCategories) {
+                    if (boneCategories[catName].length > 0) {
+                        const groupOption = document.createElement('option');
+                        groupOption.disabled = true;
+                        groupOption.className = 'bone-group';
+                        groupOption.textContent = `--- ${catName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} ---`;
+                        selector.appendChild(groupOption);
+                        
+                        boneCategories[catName].forEach((bone, index) => {
+                            const option = document.createElement('option');
+                            option.value = bone.name;
+                            option.textContent = bone.name;
+                            selector.appendChild(option);
+                        });
+                    }
+                }
+            } else {
+                // Add only bones from the selected category
+                boneCategories[category].forEach((bone) => {
+                    const option = document.createElement('option');
+                    option.value = bone.name;
+                    option.textContent = bone.name;
+                    selector.appendChild(option);
+                });
+            }
         }
         
         function createNewAnimation() {
@@ -502,24 +696,76 @@
             updateKeyframeMarkers();
         }
         
+        function updateDuration() {
+            const newDuration = parseFloat(document.getElementById('anim-duration').value);
+            if (!isNaN(newDuration) && newDuration >= 1 && newDuration <= 20) {
+                animationDuration = newDuration;
+                
+                // Update the custom animation clip with new duration
+                if (customAnimationClip) {
+                    customAnimationClip.duration = animationDuration;
+                    
+                    // Regenerate the animation with new duration
+                    generateAnimationClip();
+                }
+                
+                // Reset timeline
+                setupTimeline();
+            }
+        }
+        
         function setupControls() {
+            // Bone category selector
+            document.getElementById('bone-category-selector').addEventListener('change', (e) => {
+                updateBoneSelectorByCategory(e.target.value);
+            });
+            
             // Bone selector
             document.getElementById('bone-selector').addEventListener('change', (e) => {
-                const index = parseInt(e.target.value);
-                if (!isNaN(index) && skeleton) {
-                    selectedBone = skeleton.bones[index];
+                const boneName = e.target.value;
+                
+                if (boneName && skeleton) {
+                    // Find the bone by name
+                    selectedBone = skeleton.bones.find(bone => bone.name === boneName);
                     
-                    // Update rotation sliders to match current bone rotation
                     if (selectedBone) {
+                        // Update rotation sliders to match current bone rotation
                         document.getElementById('rotationX').value = THREE.MathUtils.radToDeg(selectedBone.rotation.x);
                         document.getElementById('rotationY').value = THREE.MathUtils.radToDeg(selectedBone.rotation.y);
                         document.getElementById('rotationZ').value = THREE.MathUtils.radToDeg(selectedBone.rotation.z);
                         updateRotationLabels();
+                        
+                        // Update position sliders if the bone has a non-zero position
+                        document.getElementById('positionX').value = selectedBone.position.x;
+                        document.getElementById('positionY').value = selectedBone.position.y;
+                        document.getElementById('positionZ').value = selectedBone.position.z;
+                        updatePositionLabels();
+                        
                         updateKeyframeMarkers();
+                        document.getElementById('current-bone-name').textContent = selectedBone.name;
                     }
                 } else {
                     selectedBone = null;
+                    document.getElementById('current-bone-name').textContent = 'None';
                 }
+            });
+            
+            // Tab controls
+            document.querySelectorAll('.controls-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    // Remove active class from all tabs
+                    document.querySelectorAll('.controls-tab').forEach(t => t.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    e.target.classList.add('active');
+                    
+                    // Hide all tab content
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    
+                    // Show selected tab content
+                    const tabId = e.target.dataset.tab + '-tab';
+                    document.getElementById(tabId).classList.add('active');
+                });
             });
             
             // Rotation controls
@@ -538,17 +784,38 @@
                 });
             });
             
+            // Position controls
+            const posXInput = document.getElementById('positionX');
+            const posYInput = document.getElementById('positionY');
+            const posZInput = document.getElementById('positionZ');
+            
+            [posXInput, posYInput, posZInput].forEach(input => {
+                input.addEventListener('input', () => {
+                    if (selectedBone) {
+                        selectedBone.position.x = parseFloat(posXInput.value);
+                        selectedBone.position.y = parseFloat(posYInput.value);
+                        selectedBone.position.z = parseFloat(posZInput.value);
+                        updatePositionLabels();
+                    }
+                });
+            });
+            
             // Playback controls
             document.getElementById('playBtn').addEventListener('click', togglePlay);
             document.getElementById('stopBtn').addEventListener('click', stopPlayback);
             document.getElementById('keyframeBtn').addEventListener('click', addKeyframe);
             
-            // Animation buttons
-            document.getElementById('walkBtn').addEventListener('click', () => playAnimation('walk'));
-            document.getElementById('trotBtn').addEventListener('click', () => playAnimation('trot'));
-            document.getElementById('gallopBtn').addEventListener('click', () => playAnimation('gallop'));
-            document.getElementById('idleBtn').addEventListener('click', () => playAnimation('idle'));
+            // Animation controls
             document.getElementById('newAnimBtn').addEventListener('click', createNewAnimation);
+            document.getElementById('updateDurationBtn').addEventListener('click', updateDuration);
+            
+            // Setup preset animation buttons if they exist
+            if (hasPresetAnimations) {
+                document.getElementById('walkBtn').addEventListener('click', () => playAnimation('walk'));
+                document.getElementById('trotBtn').addEventListener('click', () => playAnimation('trot'));
+                document.getElementById('gallopBtn').addEventListener('click', () => playAnimation('gallop'));
+                document.getElementById('idleBtn').addEventListener('click', () => playAnimation('idle'));
+            }
             
             // Save and load buttons
             document.getElementById('saveBtn').addEventListener('click', saveAnimation);
@@ -559,12 +826,24 @@
                 editorVisible = !editorVisible;
                 document.getElementById('editor-container').style.display = editorVisible ? 'flex' : 'none';
             });
+            
+            // Help button
+            document.getElementById('help-btn').addEventListener('click', () => {
+                const helpPanel = document.getElementById('help-panel');
+                helpPanel.style.display = helpPanel.style.display === 'none' ? 'block' : 'none';
+            });
         }
         
         function updateRotationLabels() {
             document.getElementById('rotationXValue').textContent = `${document.getElementById('rotationX').value}°`;
             document.getElementById('rotationYValue').textContent = `${document.getElementById('rotationY').value}°`;
             document.getElementById('rotationZValue').textContent = `${document.getElementById('rotationZ').value}°`;
+        }
+        
+        function updatePositionLabels() {
+            document.getElementById('positionXValue').textContent = document.getElementById('positionX').value;
+            document.getElementById('positionYValue').textContent = document.getElementById('positionY').value;
+            document.getElementById('positionZValue').textContent = document.getElementById('positionZ').value;
         }
         
         function addKeyframe() {
@@ -578,11 +857,18 @@
                 keyframes[selectedBone.name] = {};
             }
             
-            // Store current rotation at current time
+            // Store current rotation and position at current time
             keyframes[selectedBone.name][currentTime] = {
-                x: selectedBone.rotation.x,
-                y: selectedBone.rotation.y,
-                z: selectedBone.rotation.z
+                rotation: {
+                    x: selectedBone.rotation.x,
+                    y: selectedBone.rotation.y,
+                    z: selectedBone.rotation.z
+                },
+                position: {
+                    x: selectedBone.position.x,
+                    y: selectedBone.position.y,
+                    z: selectedBone.position.z
+                }
             };
             
             // Update the timeline with the new keyframe
@@ -601,6 +887,7 @@
             for (const boneName in keyframes) {
                 const times = [];
                 const rotations = [];
+                const positions = [];
                 
                 // Sort keyframe times
                 const sortedTimes = Object.keys(keyframes[boneName])
@@ -610,22 +897,41 @@
                 // Collect keyframe data
                 for (const time of sortedTimes) {
                     times.push(time);
-                    const rot = keyframes[boneName][time];
+                    
+                    // Add rotation data
+                    const rot = keyframes[boneName][time].rotation;
                     rotations.push(new THREE.Quaternion().setFromEuler(
                         new THREE.Euler(rot.x, rot.y, rot.z)
                     ));
+                    
+                    // Add position data if it exists
+                    if (keyframes[boneName][time].position) {
+                        const pos = keyframes[boneName][time].position;
+                        positions.push(pos.x, pos.y, pos.z);
+                    }
                 }
                 
                 // Only create tracks if we have keyframes
                 if (times.length > 0) {
                     // Create quaternion track for rotation
-                    const trackName = `${boneName}.quaternion`;
-                    const track = new THREE.QuaternionKeyframeTrack(
-                        trackName,
+                    const rotTrackName = `${boneName}.quaternion`;
+                    const rotTrack = new THREE.QuaternionKeyframeTrack(
+                        rotTrackName,
                         times,
                         THREE.QuaternionKeyframeTrack.convertArray(rotations)
                     );
-                    tracks.push(track);
+                    tracks.push(rotTrack);
+                    
+                    // Create position track if we have position data
+                    if (positions.length > 0) {
+                        const posTrackName = `${boneName}.position`;
+                        const posTrack = new THREE.VectorKeyframeTrack(
+                            posTrackName,
+                            times,
+                            positions
+                        );
+                        tracks.push(posTrack);
+                    }
                 }
             }
             
@@ -708,6 +1014,7 @@
                         
                         // Load the animation data
                         document.getElementById('animation-name').value = animationData.name;
+                        document.getElementById('anim-duration').value = animationData.duration;
                         animationDuration = animationData.duration;
                         keyframes = animationData.keyframes;
                         
