@@ -915,10 +915,17 @@
                 if (times.length > 0) {
                     // Create quaternion track for rotation
                     const rotTrackName = `${boneName}.quaternion`;
+                    
+                    // Fix: Properly flatten quaternion array
+                    const flattenedRotations = [];
+                    rotations.forEach(quat => {
+                        flattenedRotations.push(quat.x, quat.y, quat.z, quat.w);
+                    });
+                    
                     const rotTrack = new THREE.QuaternionKeyframeTrack(
                         rotTrackName,
                         times,
-                        THREE.QuaternionKeyframeTrack.convertArray(rotations)
+                        flattenedRotations
                     );
                     tracks.push(rotTrack);
                     
