@@ -3,24 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animated Horse Rig</title>
+    <title>Horse Animation Editor</title>
     <style>
         body { 
             margin: 0; 
             overflow: hidden; 
             font-family: Arial, sans-serif;
+            color: white;
         }
         canvas { 
             display: block; 
         }
-        #controls {
+        #editor-container {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.5);
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(30,30,30,0.85);
             padding: 10px;
-            border-radius: 8px;
-            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 240px;
+            border-top: 1px solid #555;
+        }
+        #timeline {
+            position: relative;
+            height: 60px;
+            background: #2a2a2a;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        #timeline-content {
+            position: relative;
+            height: 100%;
+            min-width: 100%;
+            width: 1000px;
+        }
+        #timeline-scrubber {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: red;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .keyframe-marker {
+            position: absolute;
+            width: 8px;
+            height: 16px;
+            background: #ffcc00;
+            border-radius: 2px;
+            top: 30px;
+            transform: translateX(-4px);
+            cursor: pointer;
+        }
+        .timeline-seconds {
+            position: absolute;
+            top: 5px;
+            color: #aaa;
+            font-size: 10px;
+            transform: translateX(-50%);
+        }
+        #controls-panel {
+            display: flex;
+            gap: 20px;
+            padding: 5px;
+        }
+        .panel {
+            background: #333;
+            border-radius: 4px;
+            padding: 10px;
+            flex: 1;
         }
         button {
             background: #4CAF50;
@@ -34,6 +91,16 @@
         button:hover {
             background: #3e8e41;
         }
+        button.active {
+            background: #ff5722;
+        }
+        .playback-btn {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
         .loading {
             position: absolute;
             top: 50%;
@@ -44,6 +111,54 @@
             background: rgba(0,0,0,0.7);
             padding: 20px;
             border-radius: 10px;
+        }
+        #bone-selector {
+            width: 100%;
+            margin-bottom: 10px;
+            background: #444;
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+        .rotation-control {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .rotation-control label {
+            width: 20px;
+            text-align: right;
+            margin-right: 10px;
+        }
+        .rotation-control input {
+            flex: 1;
+        }
+        .rotation-control span {
+            width: 40px;
+            text-align: right;
+        }
+        .file-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        #animation-name {
+            flex: 1;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #444;
+            color: white;
+        }
+        .toggle-editor {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+        }
+        .toggle-editor button {
+            background: #333;
         }
     </style>
     <script type="importmap">
@@ -57,11 +172,57 @@
 </head>
 <body>
     <div id="loading" class="loading">Loading horse model...</div>
-    <div id="controls">
-        <button id="walkBtn">Walk</button>
-        <button id="trotBtn">Trot</button>
-        <button id="gallopBtn">Gallop</button>
-        <button id="idleBtn">Idle</button>
+    <div class="toggle-editor">
+        <button id="toggleEditor">Toggle Editor</button>
+    </div>
+    <div id="editor-container">
+        <div id="timeline">
+            <div id="timeline-content">
+                <div id="timeline-scrubber"></div>
+                <!-- Timeline markers will be added here -->
+            </div>
+        </div>
+        <div id="controls-panel">
+            <div class="panel playback-panel">
+                <button class="playback-btn" id="playBtn" title="Play/Pause">▶</button>
+                <button class="playback-btn" id="stopBtn" title="Stop">■</button>
+                <button class="playback-btn" id="keyframeBtn" title="Add Keyframe">+</button>
+                <span id="timeDisplay">0.00s</span>
+                <div class="file-controls">
+                    <input type="text" id="animation-name" placeholder="Animation name">
+                    <button id="saveBtn">Save</button>
+                    <button id="loadBtn">Load</button>
+                </div>
+            </div>
+            <div class="panel bone-panel">
+                <select id="bone-selector">
+                    <option value="">Select a bone...</option>
+                </select>
+                <div class="rotation-control">
+                    <label>X:</label>
+                    <input type="range" id="rotationX" min="-180" max="180" value="0">
+                    <span id="rotationXValue">0°</span>
+                </div>
+                <div class="rotation-control">
+                    <label>Y:</label>
+                    <input type="range" id="rotationY" min="-180" max="180" value="0">
+                    <span id="rotationYValue">0°</span>
+                </div>
+                <div class="rotation-control">
+                    <label>Z:</label>
+                    <input type="range" id="rotationZ" min="-180" max="180" value="0">
+                    <span id="rotationZValue">0°</span>
+                </div>
+            </div>
+            <div class="panel animation-panel">
+                <h4>Preset Animations</h4>
+                <button id="walkBtn">Walk</button>
+                <button id="trotBtn">Trot</button>
+                <button id="gallopBtn">Gallop</button>
+                <button id="idleBtn">Idle</button>
+                <button id="newAnimBtn">New Animation</button>
+            </div>
+        </div>
     </div>
     <script type="module">
         import * as THREE from 'three';
@@ -110,10 +271,133 @@
         ground.receiveShadow = true;
         scene.add(ground);
         
-        // Load horse model
+        // Animation Editor Variables
         let mixer;
         let horse;
+        let skeleton;
         let animations = {};
+        let selectedBone = null;
+        let isPlaying = false;
+        let currentTime = 0;
+        let animationDuration = 5; // Default animation length in seconds
+        let keyframes = {};
+        let currentAnimation = null;
+        let customAnimationClip = null;
+        let customAction = null;
+        let editorVisible = true;
+        
+        // Create an empty THREE.AnimationClip
+        function createEmptyClip(name, duration) {
+            return new THREE.AnimationClip(name, duration, []);
+        }
+        
+        // Timeline setup
+        const timelineContent = document.getElementById('timeline-content');
+        const scrubber = document.getElementById('timeline-scrubber');
+        
+        // Create timeline markers
+        function setupTimeline() {
+            timelineContent.innerHTML = '<div id="timeline-scrubber"></div>';
+            const width = timelineContent.clientWidth;
+            const secondWidth = width / animationDuration;
+            
+            for (let i = 0; i <= animationDuration; i++) {
+                const marker = document.createElement('div');
+                marker.className = 'timeline-seconds';
+                marker.style.left = `${i * secondWidth}px`;
+                marker.textContent = `${i}s`;
+                timelineContent.appendChild(marker);
+            }
+            
+            // Recreate keyframe markers
+            updateKeyframeMarkers();
+        }
+        
+        function updateKeyframeMarkers() {
+            // Remove existing keyframe markers
+            document.querySelectorAll('.keyframe-marker').forEach(el => el.remove());
+            
+            // Add keyframe markers for the current bone
+            if (selectedBone && keyframes[selectedBone.name]) {
+                const width = timelineContent.clientWidth;
+                
+                for (const time in keyframes[selectedBone.name]) {
+                    const position = (parseFloat(time) / animationDuration) * width;
+                    const marker = document.createElement('div');
+                    marker.className = 'keyframe-marker';
+                    marker.style.left = `${position}px`;
+                    marker.dataset.time = time;
+                    marker.dataset.bone = selectedBone.name;
+                    
+                    // Add click event for editing keyframes
+                    marker.addEventListener('click', (e) => {
+                        const time = parseFloat(e.target.dataset.time);
+                        const boneName = e.target.dataset.bone;
+                        currentTime = time;
+                        updateTimeline();
+                        
+                        // Apply the rotation from the keyframe
+                        if (keyframes[boneName] && keyframes[boneName][time]) {
+                            const rotation = keyframes[boneName][time];
+                            document.getElementById('rotationX').value = THREE.MathUtils.radToDeg(rotation.x);
+                            document.getElementById('rotationY').value = THREE.MathUtils.radToDeg(rotation.y);
+                            document.getElementById('rotationZ').value = THREE.MathUtils.radToDeg(rotation.z);
+                            updateRotationLabels();
+                        }
+                    });
+                    
+                    timelineContent.appendChild(marker);
+                }
+            }
+        }
+        
+        // Timeline interaction
+        timelineContent.addEventListener('mousedown', (e) => {
+            if (e.target === timelineContent || e.target.className === 'timeline-seconds') {
+                const rect = timelineContent.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percent = x / timelineContent.clientWidth;
+                currentTime = percent * animationDuration;
+                currentTime = Math.max(0, Math.min(currentTime, animationDuration));
+                updateTimeline();
+                
+                // If a custom animation is playing, scrub to that position
+                if (customAction) {
+                    customAction.time = currentTime;
+                    mixer.update(0);
+                }
+                
+                const moveHandler = (moveEvent) => {
+                    const moveX = moveEvent.clientX - rect.left;
+                    const movePercent = moveX / timelineContent.clientWidth;
+                    currentTime = movePercent * animationDuration;
+                    currentTime = Math.max(0, Math.min(currentTime, animationDuration));
+                    updateTimeline();
+                    
+                    if (customAction) {
+                        customAction.time = currentTime;
+                        mixer.update(0);
+                    }
+                };
+                
+                const upHandler = () => {
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('mouseup', upHandler);
+                };
+                
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('mouseup', upHandler);
+            }
+        });
+        
+        function updateTimeline() {
+            const width = timelineContent.clientWidth;
+            const position = (currentTime / animationDuration) * width;
+            scrubber.style.left = `${position}px`;
+            document.getElementById('timeDisplay').textContent = `${currentTime.toFixed(2)}s`;
+        }
+        
+        // Load horse model
         const loader = new GLTFLoader();
         
         loader.load('/horse_rig.glb', (gltf) => {
@@ -125,7 +409,13 @@
                     node.castShadow = true;
                     node.receiveShadow = true;
                 }
+                if (node.isSkinnedMesh && !skeleton) {
+                    skeleton = node.skeleton;
+                }
             });
+            
+            // Find and store all bones
+            populateBoneSelector();
             
             // Scale and position the horse
             horse.scale.set(1, 1, 1);
@@ -137,12 +427,14 @@
             
             // Extract animations
             gltf.animations.forEach((clip) => {
-                // Use the animation name or index if no name
                 const name = clip.name || `animation_${gltf.animations.indexOf(clip)}`;
                 animations[name] = mixer.clipAction(clip);
             });
             
-            // If no named animations, create fallback
+            // Create a new empty animation
+            createNewAnimation();
+            
+            // If no named animations, create fallbacks
             if (Object.keys(animations).length === 0 && gltf.animations.length > 0) {
                 animations['walk'] = mixer.clipAction(gltf.animations[0]);
                 if (gltf.animations.length > 1) animations['trot'] = mixer.clipAction(gltf.animations[1]);
@@ -150,18 +442,14 @@
                 if (gltf.animations.length > 3) animations['idle'] = mixer.clipAction(gltf.animations[3]);
             }
             
-            // Play idle animation by default if available
-            if (animations['idle']) {
-                animations['idle'].play();
-            } else if (Object.values(animations).length > 0) {
-                Object.values(animations)[0].play();
-            }
+            // Setup timeline
+            setupTimeline();
             
             // Hide loading message
             document.getElementById('loading').style.display = 'none';
             
             // Setup animation buttons
-            setupAnimationButtons();
+            setupControls();
         }, 
         // Progress callback
         (xhr) => {
@@ -174,30 +462,293 @@
             document.getElementById('loading').textContent = 'Error loading model!';
         });
         
-        // Function to play animation
-        function playAnimation(name) {
-            // If the animation doesn't exist, return
-            if (!animations[name]) {
-                console.warn(`Animation "${name}" not found!`);
-                return;
-            }
+        function populateBoneSelector() {
+            const selector = document.getElementById('bone-selector');
+            selector.innerHTML = '<option value="">Select a bone...</option>';
             
-            // Stop all current animations
-            for (const anim of Object.values(animations)) {
-                anim.stop();
-            }
+            if (!skeleton) return;
             
-            // Play the requested animation
-            animations[name].reset();
-            animations[name].play();
+            skeleton.bones.forEach((bone, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = bone.name;
+                selector.appendChild(option);
+            });
         }
         
-        // Setup animation buttons
-        function setupAnimationButtons() {
+        function createNewAnimation() {
+            // Reset keyframes
+            keyframes = {};
+            
+            // Create a new animation clip
+            const name = document.getElementById('animation-name').value || `Animation_${Date.now()}`;
+            customAnimationClip = createEmptyClip(name, animationDuration);
+            
+            // Stop any existing animations
+            if (mixer) {
+                mixer.stopAllAction();
+            }
+            
+            // Create a new action for this clip
+            if (mixer && customAnimationClip) {
+                customAction = mixer.clipAction(customAnimationClip);
+                customAction.play();
+                currentAnimation = 'custom';
+            }
+            
+            // Reset timeline
+            currentTime = 0;
+            updateTimeline();
+            updateKeyframeMarkers();
+        }
+        
+        function setupControls() {
+            // Bone selector
+            document.getElementById('bone-selector').addEventListener('change', (e) => {
+                const index = parseInt(e.target.value);
+                if (!isNaN(index) && skeleton) {
+                    selectedBone = skeleton.bones[index];
+                    
+                    // Update rotation sliders to match current bone rotation
+                    if (selectedBone) {
+                        document.getElementById('rotationX').value = THREE.MathUtils.radToDeg(selectedBone.rotation.x);
+                        document.getElementById('rotationY').value = THREE.MathUtils.radToDeg(selectedBone.rotation.y);
+                        document.getElementById('rotationZ').value = THREE.MathUtils.radToDeg(selectedBone.rotation.z);
+                        updateRotationLabels();
+                        updateKeyframeMarkers();
+                    }
+                } else {
+                    selectedBone = null;
+                }
+            });
+            
+            // Rotation controls
+            const rotXInput = document.getElementById('rotationX');
+            const rotYInput = document.getElementById('rotationY');
+            const rotZInput = document.getElementById('rotationZ');
+            
+            [rotXInput, rotYInput, rotZInput].forEach(input => {
+                input.addEventListener('input', () => {
+                    if (selectedBone) {
+                        selectedBone.rotation.x = THREE.MathUtils.degToRad(parseInt(rotXInput.value));
+                        selectedBone.rotation.y = THREE.MathUtils.degToRad(parseInt(rotYInput.value));
+                        selectedBone.rotation.z = THREE.MathUtils.degToRad(parseInt(rotZInput.value));
+                        updateRotationLabels();
+                    }
+                });
+            });
+            
+            // Playback controls
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+            document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+            document.getElementById('keyframeBtn').addEventListener('click', addKeyframe);
+            
+            // Animation buttons
             document.getElementById('walkBtn').addEventListener('click', () => playAnimation('walk'));
             document.getElementById('trotBtn').addEventListener('click', () => playAnimation('trot'));
             document.getElementById('gallopBtn').addEventListener('click', () => playAnimation('gallop'));
             document.getElementById('idleBtn').addEventListener('click', () => playAnimation('idle'));
+            document.getElementById('newAnimBtn').addEventListener('click', createNewAnimation);
+            
+            // Save and load buttons
+            document.getElementById('saveBtn').addEventListener('click', saveAnimation);
+            document.getElementById('loadBtn').addEventListener('click', loadAnimation);
+            
+            // Toggle editor
+            document.getElementById('toggleEditor').addEventListener('click', () => {
+                editorVisible = !editorVisible;
+                document.getElementById('editor-container').style.display = editorVisible ? 'flex' : 'none';
+            });
+        }
+        
+        function updateRotationLabels() {
+            document.getElementById('rotationXValue').textContent = `${document.getElementById('rotationX').value}°`;
+            document.getElementById('rotationYValue').textContent = `${document.getElementById('rotationY').value}°`;
+            document.getElementById('rotationZValue').textContent = `${document.getElementById('rotationZ').value}°`;
+        }
+        
+        function addKeyframe() {
+            if (!selectedBone) {
+                alert('Please select a bone first');
+                return;
+            }
+            
+            // Initialize keyframes for this bone if they don't exist
+            if (!keyframes[selectedBone.name]) {
+                keyframes[selectedBone.name] = {};
+            }
+            
+            // Store current rotation at current time
+            keyframes[selectedBone.name][currentTime] = {
+                x: selectedBone.rotation.x,
+                y: selectedBone.rotation.y,
+                z: selectedBone.rotation.z
+            };
+            
+            // Update the timeline with the new keyframe
+            updateKeyframeMarkers();
+            
+            // Regenerate the animation clip with updated keyframes
+            generateAnimationClip();
+        }
+        
+        function generateAnimationClip() {
+            if (!customAnimationClip) return;
+            
+            const tracks = [];
+            
+            // For each bone with keyframes
+            for (const boneName in keyframes) {
+                const times = [];
+                const rotations = [];
+                
+                // Sort keyframe times
+                const sortedTimes = Object.keys(keyframes[boneName])
+                    .map(parseFloat)
+                    .sort((a, b) => a - b);
+                
+                // Collect keyframe data
+                for (const time of sortedTimes) {
+                    times.push(time);
+                    const rot = keyframes[boneName][time];
+                    rotations.push(new THREE.Quaternion().setFromEuler(
+                        new THREE.Euler(rot.x, rot.y, rot.z)
+                    ));
+                }
+                
+                // Only create tracks if we have keyframes
+                if (times.length > 0) {
+                    // Create quaternion track for rotation
+                    const trackName = `${boneName}.quaternion`;
+                    const track = new THREE.QuaternionKeyframeTrack(
+                        trackName,
+                        times,
+                        THREE.QuaternionKeyframeTrack.convertArray(rotations)
+                    );
+                    tracks.push(track);
+                }
+            }
+            
+            // Create a new animation clip with the tracks
+            const name = document.getElementById('animation-name').value || customAnimationClip.name;
+            customAnimationClip = new THREE.AnimationClip(name, animationDuration, tracks);
+            
+            // Update the animation mixer
+            if (mixer) {
+                // Stop any existing actions
+                if (customAction) customAction.stop();
+                
+                // Create a new action and play it
+                customAction = mixer.clipAction(customAnimationClip);
+                customAction.play();
+                currentAnimation = 'custom';
+            }
+        }
+        
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            document.getElementById('playBtn').innerHTML = isPlaying ? '⏸' : '▶';
+            
+            if (isPlaying && currentAnimation === 'custom' && customAction) {
+                customAction.paused = false;
+                customAction.time = currentTime;
+                customAction.play();
+            }
+        }
+        
+        function stopPlayback() {
+            isPlaying = false;
+            document.getElementById('playBtn').innerHTML = '▶';
+            currentTime = 0;
+            updateTimeline();
+            
+            if (currentAnimation === 'custom' && customAction) {
+                customAction.time = 0;
+                customAction.paused = true;
+                mixer.update(0); // Force update to reset position
+            }
+        }
+        
+        function saveAnimation() {
+            if (!customAnimationClip || customAnimationClip.tracks.length === 0) {
+                alert('No animation data to save');
+                return;
+            }
+            
+            const name = document.getElementById('animation-name').value || customAnimationClip.name;
+            const animationData = {
+                name: name,
+                duration: animationDuration,
+                keyframes: keyframes
+            };
+            
+            const dataStr = JSON.stringify(animationData);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportName = `${name}.json`;
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportName);
+            linkElement.click();
+        }
+        
+        function loadAnimation() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = readerEvent => {
+                    try {
+                        const content = readerEvent.target.result;
+                        const animationData = JSON.parse(content);
+                        
+                        // Load the animation data
+                        document.getElementById('animation-name').value = animationData.name;
+                        animationDuration = animationData.duration;
+                        keyframes = animationData.keyframes;
+                        
+                        // Regenerate the animation clip
+                        generateAnimationClip();
+                        
+                        // Update the timeline
+                        setupTimeline();
+                        currentTime = 0;
+                        updateTimeline();
+                    } catch (error) {
+                        console.error('Error loading animation:', error);
+                        alert('Error loading animation file');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+        
+        // Function to play animation
+        function playAnimation(name) {
+            // Stop all current animations
+            mixer.stopAllAction();
+            
+            if (animations[name]) {
+                // Play the requested animation
+                animations[name].reset();
+                animations[name].play();
+                currentAnimation = name;
+                isPlaying = true;
+                document.getElementById('playBtn').innerHTML = '⏸';
+                
+                // Reset custom animation
+                currentTime = 0;
+                updateTimeline();
+            } else {
+                console.warn(`Animation "${name}" not found!`);
+            }
         }
         
         // Animation loop
@@ -209,9 +760,24 @@
             // Update controls
             controls.update();
             
-            // Update animation mixer
+            // Handle animation updates
+            const delta = clock.getDelta();
+            
             if (mixer) {
-                mixer.update(clock.getDelta());
+                if (isPlaying) {
+                    // Update animation mixer
+                    mixer.update(delta);
+                    
+                    // If we're playing a custom animation, update the timeline
+                    if (currentAnimation === 'custom' && customAction) {
+                        currentTime += delta;
+                        if (currentTime > animationDuration) {
+                            currentTime = 0;
+                            customAction.time = 0;
+                        }
+                        updateTimeline();
+                    }
+                }
             }
             
             // Render scene
@@ -223,6 +789,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            setupTimeline(); // Recreate timeline on resize
         });
         
         // Start animation loop
@@ -231,4 +798,3 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
-
